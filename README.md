@@ -67,6 +67,7 @@ Each scenario generated specific logs capturing the corresponding attack activit
 ### Feature Extraction pipeline
 
 ![image](https://github.com/user-attachments/assets/9387415a-d5c5-4c6a-8508-b74b9636955e)
+
 [Fed-ANIDS: : Federated learning for anomaly-based network intrusion detection systems](https://doi.org/10.1016/j.eswa.2023.121000)
 
 
