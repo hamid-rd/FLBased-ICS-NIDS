@@ -172,3 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# CIC Modbus 2023 dataset
+ModbusDataset/benign/*
+ModbusDataset/attack/*

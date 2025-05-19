@@ -43,6 +43,8 @@ Each scenario generated specific logs capturing the corresponding attack activit
 
 </td></tr> </table>
 
+[more details](./ModbusDataset)
+
 ### Architecture
 
 ![image](https://github.com/user-attachments/assets/f395a413-b035-48d5-adcb-f23c43f1632b)
@@ -57,12 +59,6 @@ Each scenario generated specific logs capturing the corresponding attack activit
 ##### Central Agent – 185.175.0.6
 ##### Attacker – 185.175.0.7
 
-#### Logs (CSV Files)
-
-- Timestamp: The timestamp of the attack event. (Date/Time)
-- TargetIP: The IP address of the targeted device. (String)
-- Attack: The type of attack. (String)
-- TransactionID: The ID of the transaction associated with the attack. (String)
 
 ### Feature Extraction pipeline
 
@@ -80,7 +76,22 @@ Each scenario generated specific logs capturing the corresponding attack activit
 
 ```
 
+#### pipeline script
 
+Ensure the above programms downloaded ,installed and added to the path successfully in Ubuntu 20 or higher / WSL2.
+then download and extract the ModbusDataset2023 in ./ModbusDataset directory
+
+> ModbusDataset
+>> benign
+>
+>> attack
+
+```md
+# fix corrupted packets,reorder by timestamp then create input directory alongside the .pcap files and save in it.
+./pcapfixreorder 
+
+
+```
 
 
 
