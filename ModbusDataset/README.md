@@ -25,7 +25,7 @@ Some attack .pcap files/logs are missed or have some common data.
 
 Attacks from an unknown IP address (185.175.0.7) targeting 185.175.0.4.
 
-- **Reconnaissance**: Reading queries for all available addresses (up to 65535) or a specific range (e.g., 5) using various function codes across multiple connections.
+- **Reconnaissance**: Reading queries for all available addresses (up to 65535) or a specific range (e.g., 5) using various function codes across multiple connections in further attacks.
 - **Query Flooding**: Sending multiple read queries (e.g., 30) in a burst within a single connection to overwhelm the system.
 - **Length Manipulation**: Altering the length header of Modbus/TCP packets to a random incorrect value, preventing Wireshark from recognizing the Modbus protocol.
 - **Replay Attack**: Resending a previous query payload without proper transaction ID handling.
@@ -37,13 +37,14 @@ Attacks from an unknown IP address (185.175.0.7) targeting 185.175.0.4.
 
 Attacks from 185.175.0.3 targeting 185.175.0.4 and 185.175.0.8.
 Days 12 to 15 missed in attack logs.
-
+Day 21 Attack log TimeStamp format in corrupted ( no year-month-day-hour just have minutes and seconds (rounded upwards)) 
 - **Length Manipulation**: Changing the Modbus/TCP length header to an incorrect value, making the protocol unrecognizable to Wireshark.
 - **Payload Injection**: Appending random payloads (e.g., 5 bytes) to read queries.
 - **Replay Attack**: Resending previous queries in a last-in-first-out (LIFO) order.
 - **Query Flooding**: Sending multiple read queries (e.g., 30) in a burst within one connection, with transaction IDs increasing from 0 to 30. .It Must be said that Query Flooding completed in the log.
 - **Stacked Modbus Frames**: Sending multiple identical Modbus payloads (e.g., 5) in a single query.
 - **Brute Force**: Sending read queries for large data lengths (e.g., 2000 bits of coil) that trigger illegal data address errors, and repeating queries with illegal payloads (Illegal payload for single coil (ffff)).
+- **Reconnaissance**: Reading queries for all available addresses (up to 2000) or a specific range (e.g., 5) using various function codes across multiple connections in further attacks.
 
 ## Compromised IED Attacks
 

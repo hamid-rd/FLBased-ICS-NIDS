@@ -173,6 +173,11 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# CIC Modbus 2023 dataset
-ModbusDataset/benign/*
-ModbusDataset/attack/*
+# CIC Modbus 2023 pcap files 
+*.pcap
+# Extracted  (csv) using scriptFlowExtract.sh
+# Attack Logs
+*.csv
+*.xlsx
+# WSL Zone Copied file from Windows Drive 
+*Zone.Identifier

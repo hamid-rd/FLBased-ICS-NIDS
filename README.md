@@ -77,10 +77,9 @@ Each scenario generated specific logs capturing the corresponding attack activit
 ```
 
 #### pipeline script
-
 Ensure the above programms downloaded ,installed and added to the path successfully in Ubuntu 20 or higher / WSL2.
-then download and extract the ModbusDataset2023 in ./ModbusDataset directory
-
+Ensure Docker is running.
+download and extract the ModbusDataset2023 in ./ModbusDataset directory.
 > ModbusDataset
 >> benign
 >
@@ -88,9 +87,11 @@ then download and extract the ModbusDataset2023 in ./ModbusDataset directory
 
 ```md
 # fix corrupted packets,reorder by timestamp then create input directory alongside the .pcap files and save in it.
-./pcapfixreorder 
-
-
+./pcapFixReorder.sh
+# run docker container of modified CICFlowMeter to extract .csv flows from .pcap save in output directory
+./flowExtract.sh
+# handle TimeStamp of compromised scada 21/3 attack log (has no year-month-day-hour)
+./fixScadaAttackLog.sh
 ```
 
 
