@@ -6,10 +6,10 @@
   - [Attacks](#attacks)
   - [Architecture](#architecture)
   - [Feature Extraction pipeline](#feature-extraction-pipeline)
-- [FL-based NIDS](#fl-based-nids)
-  - [resources](#resources)
-  - [Proposed Method](#proposed-method)
-
+- [Preprocessing](#preprocessing)
+  - [Requirments](#resources)
+  - [Labeling](#labeling)
+  - [Visualization](#visualization)
 ## Introduction
 
 In this repo, a federated framework for Anomaly-based Netowrk Intrusion Detection through VAE-LSTM Network implemented.
@@ -93,6 +93,28 @@ download and extract the ModbusDataset2023 in ./ModbusDataset directory.
 # handle TimeStamp of compromised scada 21/3 attack log (has no year-month-day-hour)
 ./fixScadaAttackLog.sh
 ```
+
+## Preprocessing
+
+We will label the CSV files in the output directories and compress them into a zip file, making them ready for data analysis and AI research.
+
+
+### Requirments
+
+Create python (3.10.12) virtual environment and install prerequires (WSL-Win11-nvidia). 
+The list of requirement packages is enough for this part and the next parts, but you don't have to use it exactly as provided; you can create your own.
+
+```md
+python -m venv vnv
+source ./vnv/bin/activate
+pip install -r requirements.txt
+```
+
+### Labeling 
+
+Label [pipeline script](#pipeline-script-part)by correlating them with the Timestamp and IP columns from the Attack Logs. Fallow the guidelines of Labeling.ipynb results in the Labeld_CICMODBUS2023.zip. 
+
+### Visualization
 
 
 

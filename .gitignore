@@ -181,3 +181,8 @@ cython_debug/
 *.xlsx
 # WSL Zone Copied file from Windows Drive 
 *Zone.Identifier
+# virtual environment
+vnv
+*.venv
+version
+*.zip
