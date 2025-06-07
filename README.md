@@ -112,7 +112,7 @@ pip install -r requirements.txt
 
 ### Labeling 
 
-Label [pipeline script](#pipeline-script-part)by correlating them with the Timestamp and IP columns from the Attack Logs. Fallow the guidelines of Labeling.ipynb results in the Labeld_CICMODBUS2023.zip. 
+Label [ pipeline script ](#feature-extraction-pipeline) by correlating them with the Timestamp and IP columns from the Attack Logs. Fallow the guidelines of Labeling.ipynb results in the Labeld_CICMODBUS2023.zip. 
 
 ### Visualization
 
