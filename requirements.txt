@@ -19,6 +19,7 @@ ipywidgets==8.1.7
 iterators==0.0.2
 jedi==0.19.2
 Jinja2==3.1.4
+joblib==1.5.1
 jupyter_client==8.6.3
 jupyter_core==5.8.1
 jupyterlab_widgets==3.0.15
@@ -59,9 +60,13 @@ pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 pytz==2025.2
 pyzmq==26.4.0
+scikit-learn==1.7.0
+scipy==1.15.3
+seaborn==0.13.2
 six==1.17.0
 stack-data==0.6.3
 sympy==1.13.3
+threadpoolctl==3.6.0
 torch==2.7.1+cu118
 torchaudio==2.7.1+cu118
 torchvision==0.22.1+cu118

@@ -1,11 +1,10 @@
 
 import os
 import json 
-from torch.utils.data import Dataset
 import numpy as np
 import pandas as pd 
 
-class ModbusDataset(Dataset):
+class ModbusDataset():
     """
 This class organizes the CICModbus 2023 dataset by scanning its hierarchical directory structure,
 helping in extracting and labeling data flows from CSV files, incorporating metadata such as file paths and directory details,
@@ -71,47 +70,7 @@ and preparing the data for efficient batch processing with PyTorch's DataLoader,
                             "external":ext_attack_log_dir,
                             "compromised-ied":comp_ied_attack_log_dir,
                             "compromised-scada":comp_scada_attack_log_dir}}
-        
-    def __len__(self):
-        return int(np.ceil(self.dataset["metadata"]["founded_files_num"]["total_dataset_num"] / float(self.batch_size)))   # Number of chunks.
     
-    def __getitem__(self, idx): 
-        #return batch_size number of csv files in numpy matrix format
-        batch_x = self.dataset["total_dataset_dir"][idx * self.batch_size : (idx + 1) * self.batch_size] 
-        dataset_df_list = []
-        label_df_list = []
-        for file in batch_x:
-            temp =pd.read_csv(file,encoding='cp1252')
-
-            # Remove unuseful features
-            numeric_cols = temp.drop(columns=['Flow ID','Src IP','Src Port','Dst IP','Dst Port','Timestamp']).select_dtypes(include=['number']).columns
-            # Process features
-            features = df[self.numeric_columns].copy()
-            for col in self.numeric_columns:
-                # Min-max scaling with zero-division guard
-                col_range = self.feature_max[col] - self.feature_min[col]
-                if col_range == 0:
-                    features[col] = 0.5  # Handle constant columns
-                else:
-                    features[col] = (features[col] - self.feature_min[col]) / col_range
-            
-            # Process labels
-            one_hot = np.zeros((len(df), len(self.unique_labels)), dtype=np.float32)
-            for i, label in enumerate(df['Label']):
-                if label in self.unique_labels:
-                    one_hot[i, self.unique_labels.index(label)] = 1
-
-            dataset_df_list.append(temp[numeric_cols])
-            label_df_list.append(temp['Label'])
-        data = self.convert_list_of_dataframes_to_numpy(dataset_df_list)
-        labels = self.convert_list_of_dataframes_to_numpy(label_df_list)
-
-        # The following condition is actually needed in Pytorch. Otherwise, for our particular example, the iterator will be an infinite loop.
-        # Readers can verify this by removing this condition.
-        if idx == self.__len__():  
-            raise IndexError
-
-        return data, labels
 
     def convert_list_of_dataframes_to_numpy(self,list_of_dfs):
         numpy_arrays = [df.to_numpy() for df in list_of_dfs]

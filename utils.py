@@ -36,3 +36,20 @@ def merge_datasets(_dataset_dir):
         merged_new_df = pd.concat([format_csv_for_labeling(pd.read_csv(_dir, encoding='cp1252')),merged_new_df],join="inner")
     return merged_new_df
     
+def find_unique_values(dataset_directories):
+    """find all unique values for label and protocol columns across all CSV files in dataset_directories
+        make them ready for fitting the one-hot encodes."""
+    # example use :
+    ### unique_values =find_unique_values(modbus.dataset["attack_dataset_dir"]["total"])
+    ### print(unique_values)
+    label_values = []
+    protocol_values = []
+    label_column = "Label"
+    protocol_column = "Protocol"
+    for file in dataset_directories:
+        df = pd.read_csv(file, usecols=["Label", "Protocol"], encoding='cp1252')
+        label_values.extend(df[label_column].unique())
+        protocol_values.extend(df[protocol_column].unique())
+
+    return(list(set(label_values)),list(set(protocol_values)))
+    
