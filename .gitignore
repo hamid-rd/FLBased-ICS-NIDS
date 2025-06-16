@@ -186,4 +186,3 @@ vnv
 *.venv
 version
 *.zip
-fitted_scalers

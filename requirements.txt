@@ -13,6 +13,8 @@ flwr==1.6.0
 fonttools==4.58.2
 fsspec==2024.6.1
 grpcio==1.72.1
+imbalanced-learn==0.13.0
+imblearn==0.0
 ipykernel==6.29.5
 ipython==8.37.0
 ipywidgets==8.1.7
@@ -60,10 +62,11 @@ pyparsing==3.2.3
 python-dateutil==2.9.0.post0
 pytz==2025.2
 pyzmq==26.4.0
-scikit-learn==1.7.0
+scikit-learn==1.6.1
 scipy==1.15.3
 seaborn==0.13.2
 six==1.17.0
+sklearn-compat==0.1.3
 stack-data==0.6.3
 sympy==1.13.3
 threadpoolctl==3.6.0
