@@ -116,5 +116,7 @@ Label [ pipeline script ](#feature-extraction-pipeline) by correlating them with
 
 ### Visualization
 
-
+Dataset statiscal charactristics (like mean,min,max,...) analyzed. Label Distribution for each node in diverse attack scenarios 
+plotted (huge unbalanaed). Classification performance of several machine learning models (SVM,LR,Gaussian Naive Bayes ,...) is tested. 
+Some feature Engineering techniques (like underSampling,MinMax Scaling,feature selection,...) is implemented to improve the performance.
 
