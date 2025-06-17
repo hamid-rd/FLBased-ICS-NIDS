@@ -28,7 +28,7 @@ def format_csv_for_labeling(df):
 
 def merge_datasets(_dataset_dir):
     """
-        create dataframes from the directories then return the merged_file  
+        create dataframes from the directories then return the merged (concatenated) dataframe 
     """
     # take two columns (attack logs ) or four columns (attacker logs)    
     merged_new_df = format_csv_for_labeling(pd.read_csv(_dataset_dir[0], encoding='cp1252'))
