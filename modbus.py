@@ -3,6 +3,11 @@ import os
 import json 
 import numpy as np
 import pandas as pd 
+from typing import List,Tuple
+from torch.utils.data import Dataset
+import random
+from sklearn.preprocessing import OneHotEncoder , LabelEncoder
+from torch import Tensor,tensor,float32,int32
 
 class ModbusDataset():
     """
@@ -95,4 +100,211 @@ and preparing the data for efficient batch processing with PyTorch's DataLoader,
     def print_csv(datasets_dir_list,replace_dir):
         for i,dataset in enumerate(datasets_dir_list) :
             print(i+1,dataset.replace(replace_dir,""))
+
+
+
+class CSVDataset(Dataset):
+    def __init__(
+        self,
+        csv_files: List[str],
+        chunk_size: int = 5,
+        batch_size: int = 64, 
+        scalers: dict = None,  #accept a dictionary of scalers
+        shuffle=True,
+        unuseful_features = ['Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port', 'Timestamp','end_time']
+
+    ):
+        """
+        Custom PyTorch Dataset for reading multiple CSV files in chunks with preprocessing and scaling.
+
+        Args:
+            csv_files: List of paths to CSV files
+            chunk_size: Number of files to process in one chunk (default: 5)
+            scalers: Dictionary of fitted scalers (MinMaxScaler or StandardScaler) for each numeric feature column.
+            shuffle: shuffle indices of the csv_files after every epoch (internal handling) (default:True)
+        """
+        self.csv_files = csv_files
+        self.csv_files_len = len(csv_files)
+        self.chunk_size = chunk_size
+        self.batch_size = batch_size  
+        self.label_column = 'Label'
+        self.protocol_column = 'Protocol'
+        self.scalers = scalers  
+        self.shuffle = shuffle
+        self.file_order_indices = list(range(self.csv_files_len))
+        if self.shuffle:
+            random.shuffle(self.file_order_indices) 
+        self.current_file_idx = 0 
+
+        self.current_chunk_data = None
+        self.current_chunk_labels = None
+        self.current_row_in_chunk_idx = 0 # Index within the currently loaded chunk
+
+        self.unuseful_features = unuseful_features
+        
+        # Determine numeric columns for scaling once during initialization
+        self.numeric_cols_to_scale =[]
+        self.determine_numeric_cul()
+        # Initialize LabelEncoder and OneHotEncoder
+        self.label_encoder = LabelEncoder()
+        self.protocol_encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+        self._fit_encoders()
+
+        # Precalculate total rows and total batches
+        self.total_samples = self._calculate_total_rows()
+        
+        self.total_batches = int(np.ceil(self.total_samples / self.batch_size))
+
+        self._load_next_chunk() # Load the first chunk of data
+
+    def determine_numeric_cul(self):    
+        if self.csv_files_len > 0:
+            # call once in __init__ function
+            # Read a small portion of the first file to infer dtypes and columns
+            # This assumes the column structure and data types are consistent across all CSVs.
+            try:
+                temp_df = pd.read_csv(self.csv_files[0], encoding='cp1252', nrows=100, low_memory=False)
+                
+                relevant_cols = [col for col in temp_df.columns if col not in self.unuseful_features]
+                
+                # Filter for numeric types and exclude label/protocol columns
+                self.numeric_cols_to_scale = [
+                    col for col in relevant_cols
+                    if pd.api.types.is_numeric_dtype(temp_df[col]) and col not in [self.label_column, self.protocol_column]
+                ]
+            except Exception as e:
+                print(f"Warning: Could not infer numeric columns from first CSV file. Error: {e}")
+                print("Proceeding without pre-calculated numeric columns for scaling, this may lead to slower preprocessing.")
+
+    def _fit_encoders(self):
+        """
+        Fit LabelEncoders for 'Label' and OneHotEncoder for 'Protocol' based on known unique values.
+        """
+        label_values = ['BASELINE REPLAY', 'PAYLOAD INJECTION', 'FRAME STACKING', 'QUERY FLOODING', 'RECON',
+                        'BRUTE FORCE', 'BENIGN', 'DELAY RESPONSE', 'LENGTH MANIPULATION']
+        # OneHotEncoder expects a 2D array, even for a single feature
+        protocol_values = np.array([17, 2, 6]).reshape(-1, 1)
+        self.label_encoder.fit(label_values)
+        self.protocol_encoder.fit(protocol_values)
+
+    def _preprocess_chunk(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Apply scaling to numeric columns using the provided dictionary of scalers.
+
+        Args:
+            df (pd.DataFrame): The DataFrame chunk to preprocess.
+
+        Returns:
+            pd.DataFrame: The preprocessed DataFrame.
+        """
+
+        if self.scalers:
+            ## assume the same columns in all csv files.
+            for col in self.numeric_cols_to_scale:
+                if col in self.scalers: # Ensure a scaler exists for the current column
+                    # Apply the specific scaler for this column
+                    # .transform expects a 2D array, hence df[[col]]
+                    df[col] = self.scalers[col].transform(df[[col]].values)
+        return df
+
+    def _load_next_chunk(self):
+        """
+        Loads the next chunk of CSV files into memory based on the shuffled file indices,
+        preprocesses, encodes, and converts data to PyTorch Tensors.
+        Handles reshuffling of file indices when all files have been processed (end of an internal "epoch").
+        """
+        # If all files from the current order have been processed,(if shuffle is true) reshuffle for the next epoch
+        if self.current_file_idx >= self.csv_files_len:
+            self.file_order_indices = list(range(self.csv_files_len))
+            if self.shuffle:
+                random.shuffle(self.file_order_indices)
+            self.current_file_idx = 0 
+
+        start_idx_in_order = self.current_file_idx
+        end_idx_in_order = min(start_idx_in_order + self.chunk_size, self.csv_files_len)
+
+        chunk_file_paths = [self.csv_files[self.file_order_indices[i]] for i in range(start_idx_in_order, end_idx_in_order)]
+
+        if chunk_file_paths:
+            # Concat CSV files, dropping unuseful features
+            if chunk_file_paths ==1 :
+                chunk_df = pd.read_csv(chunk_file_paths, encoding='cp1252',
+                                                usecols=self.numeric_cols_to_scale.extend(self.label_column), low_memory=False) 
+            else :
+                chunk_df = pd.concat([pd.read_csv(file, encoding='cp1252',
+                                                usecols=lambda column: column not in self.unuseful_features, low_memory=False) for file in chunk_file_paths],
+                                                ignore_index=True)
+
+            chunk_df[self.label_column] = self.label_encoder.transform(chunk_df[self.label_column])
+
+            
+            # Convert to numpy array to avoid the UserWarning about feature names
+            protocol_encoded_array = self.protocol_encoder.transform(chunk_df[[self.protocol_column]].values)
+            chunk_df.drop(columns=[self.protocol_column], inplace=True)
+            chunk_df[[f'Protocol_{int(cat)}' for cat in self.protocol_encoder.categories_[0]]] = protocol_encoded_array
+
+            chunk_df = self._preprocess_chunk(chunk_df)
+            self.current_chunk_data = tensor(chunk_df.drop(columns=[self.label_column],inplace=False).values, dtype=float32)
+            self.current_chunk_labels = tensor(chunk_df[self.label_column].values, dtype=int32)
+
+            self.current_file_idx = end_idx_in_order
+            self.current_row_in_chunk_idx = 0  # Reset row index within the new chunk
+        else:
+            self.current_chunk_data = None
+            self.current_chunk_labels = None
+
+    def _calculate_total_rows(self) -> int:
+        """
+        Calculates the total number of samples across all CSV files.
+        This is called once during initialization.
+        """
+        total_rows = 0
+        for file in self.csv_files:
+            # Read only the label column to quickly get the row count
+            total_rows += len(pd.read_csv(file, usecols=[self.label_column], encoding='cp1252', low_memory=False))
+        return total_rows
+
+    def __len__(self) -> int:
+        """
+        Returns the total number of batches available for a DataLoader with batch_size=1.
+        This value is precalculated in the __init__ method.
+        """
+        return self.total_batches
+
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+        """
+        This method internally manages loading fixed-size batches (self.batch_size=64) from chunks.
+        The `idx` parameter from DataLoader is used by DataLoader for tracking progress,
+        but not directly for selecting data within this Dataset's internal logic.
+
+        Args:
+            idx (int): Index provided by the DataLoader.
+
+        Returns:
+            Tuple[Tensor, Tensor]: A tuple containing (features_tensor, labels_tensor) for the batch.
+        """
+        if self.current_chunk_data is None:
+            # If current_chunk_data is None, it means there are no more files to process
+            # in the current  order (or globally). This signals end of iteration.
+            raise StopIteration("No more data chunks to load.")
+
+        ## get the length of the torch tensor 
+        current_len_chunk_data = len(self.current_chunk_data)
+
+        # Calculate the end index for the current batch within the current chunk.
+        # It takes `self.batch_size` samples, or fewer if close to the end of the chunk.
+        end_idx = min(self.current_row_in_chunk_idx + self.batch_size, current_len_chunk_data)
+
+        # Slice the data and labels directly from the pre-converted tensors
+        features = self.current_chunk_data[self.current_row_in_chunk_idx:end_idx]
+        labels = self.current_chunk_labels[self.current_row_in_chunk_idx:end_idx]
+
+        # Update the starting index for the next batch within the current chunk
+        self.current_row_in_chunk_idx = end_idx
+
+        # If we have processed all rows in the current chunk, load the next chunk of files
+        if self.current_row_in_chunk_idx >= current_len_chunk_data:
+            self._load_next_chunk() # This call will also handle reshuffling for the next epoch if needed
+
+        return features, labels
 
