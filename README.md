@@ -77,9 +77,9 @@ Each scenario generated specific logs capturing the corresponding attack activit
 ```
 
 #### pipeline script
-Ensure the above programms downloaded ,installed and added to the path successfully in Ubuntu 20 or higher / WSL2.
-Ensure Docker is running.
-download and extract the ModbusDataset2023 in ./ModbusDataset directory.
+Download and extract the ModbusDataset2023 in ./ModbusDataset directory.
+Ensure the above programms (pcapfix,reordercap) downloaded ,installed and added to the path successfully in Ubuntu 20 or higher / WSL2.
+Ensure Docker is running and the image of cicflowmeter is added.
 > ModbusDataset
 >> benign
 >
@@ -107,7 +107,9 @@ The list of requirement packages is enough for this part and the next parts, but
 ```md
 python -m venv vnv
 source ./vnv/bin/activate
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 
 pip install -r requirements.txt
+
 ```
 
 ### Labeling 

@@ -15,9 +15,8 @@ This class organizes the CICModbus 2023 dataset by scanning its hierarchical dir
 helping in extracting and labeling data flows from CSV files, incorporating metadata such as file paths and directory details,
 and preparing the data for efficient batch processing with PyTorch's DataLoader, with an optional filter argument to search directory paths.
     """
-    def __init__(self, _root_dir = "./ModbusDataset",filter = "output",batch_size=5):
+    def __init__(self, _root_dir = "./ModbusDataset",filter = "output"):
         self.root_dir = _root_dir
-        self.batch_size = batch_size
         self.filter=filter
         datasets_dir = self.find_csv_in_folder(self.root_dir,self.filter)
         benign_datasets_dir = self.find_csv_in_list(datasets_dir,"benign")
@@ -145,12 +144,11 @@ class CSVDataset(Dataset):
         # Determine numeric columns for scaling once during initialization
         self.numeric_cols_to_scale =[]
         self.determine_numeric_cul()
-        # Initialize LabelEncoder and OneHotEncoder
+
         self.label_encoder = LabelEncoder()
         self.protocol_encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
         self._fit_encoders()
 
-        # Precalculate total rows and total batches
         self.total_samples = self._calculate_total_rows()
         
         self.total_batches = int(np.ceil(self.total_samples / self.batch_size))
@@ -160,8 +158,7 @@ class CSVDataset(Dataset):
     def determine_numeric_cul(self):    
         if self.csv_files_len > 0:
             # call once in __init__ function
-            # Read a small portion of the first file to infer dtypes and columns
-            # This assumes the column structure and data types are consistent across all CSVs.
+            # assumes the column structure and data types are consistent across all CSVs.
             try:
                 temp_df = pd.read_csv(self.csv_files[0], encoding='cp1252', nrows=100, low_memory=False)
                 
@@ -190,7 +187,6 @@ class CSVDataset(Dataset):
     def _preprocess_chunk(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Apply scaling to numeric columns using the provided dictionary of scalers.
-
         Args:
             df (pd.DataFrame): The DataFrame chunk to preprocess.
 
@@ -199,7 +195,6 @@ class CSVDataset(Dataset):
         """
 
         if self.scalers:
-            ## assume the same columns in all csv files.
             for col in self.numeric_cols_to_scale:
                 if col in self.scalers: # Ensure a scaler exists for the current column
                     # Apply the specific scaler for this column
@@ -238,7 +233,6 @@ class CSVDataset(Dataset):
             chunk_df[self.label_column] = self.label_encoder.transform(chunk_df[self.label_column])
 
             
-            # Convert to numpy array to avoid the UserWarning about feature names
             protocol_encoded_array = self.protocol_encoder.transform(chunk_df[[self.protocol_column]].values)
             chunk_df.drop(columns=[self.protocol_column], inplace=True)
             chunk_df[[f'Protocol_{int(cat)}' for cat in self.protocol_encoder.categories_[0]]] = protocol_encoded_array
