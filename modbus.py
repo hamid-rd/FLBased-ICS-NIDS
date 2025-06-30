@@ -104,7 +104,7 @@ and preparing the data for efficient batch processing with PyTorch's DataLoader,
         for i,dataset in enumerate(datasets_dir_list) :
             print(i+1,dataset.replace(replace_dir,""))
 
-class CSVDataset(Dataset):
+class ModbusFlowStream(Dataset):
     def __init__(
         self,
         csv_files: List[str],
@@ -122,7 +122,7 @@ class CSVDataset(Dataset):
             csv_files: List of paths to CSV files
             chunk_size: Number of files to process in one chunk (default: 5)
             scalers: Dictionary of fitted scalers (MinMaxScaler or StandardScaler) for each numeric feature column.
-            shuffle: shuffle indices of the csv_files after every epoch (internal handling) (default:True)
+            shuffle: shuffle indices of rows in each chunk (internal handling) (default:True)
             window_size: return samples (default:1) or sequences with window_size (each file) for the RNN models 
 
         """
@@ -135,11 +135,10 @@ class CSVDataset(Dataset):
         self.scalers = scalers 
         if shuffle and window_size!=1:
             warnings.warn("when dealing with time_series/sequences shuffling is prohibited")
+        self.file_order_indices = list(range(self.csv_files_len))
         self.shuffle = shuffle
         self.window_size=window_size
-        self.file_order_indices = list(range(self.csv_files_len))
-        if self.shuffle:
-            random.shuffle(self.file_order_indices) 
+
         self.current_file_idx = 0 
 
         self.current_chunk_data = None
@@ -157,7 +156,6 @@ class CSVDataset(Dataset):
         self._fit_encoders()
 
         self.total_batches = self._calculate_total_rows()
-        self._load_next_chunk() # Load the first chunk of data
 
     def determine_numeric_cul(self):    
         if self.csv_files_len > 0:
@@ -197,7 +195,8 @@ class CSVDataset(Dataset):
         Returns:
             pd.DataFrame: The preprocessed DataFrame.
         """
-
+        if  not (self.scalers):
+            return df
         if isinstance(list(self.scalers.values())[0],OneToOneFeatureMixin):
             for col in self.numeric_cols_to_scale:
                 if col in self.scalers: # Ensure a scaler exists for the current column
@@ -210,15 +209,12 @@ class CSVDataset(Dataset):
 
     def _load_next_chunk(self):
         """
-        Loads the next chunk of CSV files into memory based on the shuffled file indices,
+        Loads the next chunk of CSV files into memory ,
         preprocesses, encodes, and converts data to PyTorch Tensors.
-        Handles reshuffling of file indices when all files have been processed (end of an internal "epoch").
+        Handles reshuffling of  indices within each file
         """
-        # If all files from the current order have been processed,(if shuffle is true) reshuffle for the next epoch
+        # If all files from the current order have been processed
         if self.current_file_idx >= self.csv_files_len:
-            self.file_order_indices = list(range(self.csv_files_len))
-            if self.shuffle:
-                random.shuffle(self.file_order_indices)
             self.current_file_idx = 0 
 
         start_idx_in_order = self.current_file_idx
@@ -227,8 +223,8 @@ class CSVDataset(Dataset):
         chunk_file_paths = [self.csv_files[self.file_order_indices[i]] for i in range(start_idx_in_order, end_idx_in_order)]
 
         if chunk_file_paths:
-            # Concat CSV files, dropping unuseful features
 
+            # Concat CSV files, dropping unuseful features
             if chunk_file_paths ==1 :
                 chunk_df = pd.read_csv(chunk_file_paths, encoding='cp1252',
                                                 usecols=self.numeric_cols_to_scale.extend(self.label_column), low_memory=False) 
@@ -237,7 +233,8 @@ class CSVDataset(Dataset):
                                                 usecols=lambda column: column not in self.unuseful_features, low_memory=False) for file in chunk_file_paths],
                                                 ignore_index=True)
 
-
+            if self.shuffle:
+                chunk_df = chunk_df.sample(frac=1).reset_index(drop=True)
             chunk_df[self.label_column] = self.label_encoder.transform(chunk_df[self.label_column])
 
             
@@ -267,7 +264,7 @@ class CSVDataset(Dataset):
             else: # window_size ==1 , AutoEncoder samples 
                 self.current_chunk_data = tensor(features_np, dtype=float32)
                 self.current_chunk_labels = tensor(labels_np, dtype=int32)
-
+            self.current_len_chunk_data = len(self.current_chunk_data)
             self.current_file_idx = end_idx_in_order
             self.current_row_in_chunk_idx = 0  # Reset row index within the new chunk
         else:
@@ -307,18 +304,14 @@ class CSVDataset(Dataset):
             Tuple[Tensor, Tensor]: A tuple containing (features_tensor, labels_tensor) for the batch.
         """
         if self.current_chunk_data is None:
-            raise StopIteration("No more data chunks to load.")
-
-        current_len_chunk_data = len(self.current_chunk_data)
-
-        end_idx = min(self.current_row_in_chunk_idx + self.batch_size, current_len_chunk_data)
+            #initial 
+            self._load_next_chunk()
+        if self.current_row_in_chunk_idx >= self.current_len_chunk_data:
+            self._load_next_chunk() 
+        end_idx = min(self.current_row_in_chunk_idx + self.batch_size, self.current_len_chunk_data)
         # Slice the data and labels directly from the pre-converted tensors
         features = self.current_chunk_data[self.current_row_in_chunk_idx:end_idx]
         labels = self.current_chunk_labels[self.current_row_in_chunk_idx:end_idx]
         self.current_row_in_chunk_idx = end_idx
-
-        if self.current_row_in_chunk_idx >= current_len_chunk_data:
-            self._load_next_chunk() # This call will also handle reshuffling for the next epoch if needed
-
         return features, labels
 

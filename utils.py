@@ -1,15 +1,11 @@
 import pandas as pd
 import numpy as np
-import re
-from bisect import bisect_left, bisect_right
-import zipfile
-
+import pickle,os
 # Basic preprocessing before getting started on labelling.
 # Deletes rows with "Infinity" and NaNs, converts "Timestamp" to Pandas Datetime, and converts all necessary columns to numeric values
 # Int_64 Columns (Attempted-Category) not considered.
 
 print_index = False
-
 def format_csv_for_labeling(df):
     df = df.replace('Infinity', np.nan)
     # Clean the Timestamp strings to always include microseconds (append .0 if missing)
@@ -53,3 +49,42 @@ def find_unique_values(dataset_directories):
 
     return(list(set(label_values)),list(set(protocol_values)))
     
+
+def load_scalers(scaler_dir='fitted_scalers'):
+    """
+    Loads fitted scaler models from disk.
+
+    Args:
+        scaler_dir (str, optional): The directory where scalers are saved. Defaults to 'fitted_scalers'.
+
+    Returns:
+        dict: A dictionary containing the loaded scalers, organized by subdirectory.
+              Returns an empty dictionary if the directory doesn't exist.
+    """
+    loaded_scalers = {}
+    if not os.path.exists(scaler_dir):
+        print(f"Scaler directory '{scaler_dir}' not found.")
+        return loaded_scalers
+
+    for subdir_name in os.listdir(scaler_dir):
+        subdir_path = os.path.join(scaler_dir, subdir_name)
+        if os.path.isdir(subdir_path):
+            try:
+                min_max_path = os.path.join(subdir_path, 'min_max_scalers.pkl')
+                standard_path = os.path.join(subdir_path, 'standard_scalers.pkl')
+
+                if os.path.exists(min_max_path) and os.path.exists(standard_path):
+                    # In the load_scalers function, replace joblib.load() with:
+                    with open(min_max_path, 'rb') as f:
+                        min_max_scalers = pickle.load(f)
+                    with open(standard_path, 'rb') as f:
+                        standard_scalers = pickle.load(f)
+                    loaded_scalers[subdir_name] = {
+                        'min_max_scalers': min_max_scalers,
+                        'standard_scalers': standard_scalers
+                    }
+                    print(f"Successfully loaded scalers for '{subdir_name}'")
+            except Exception as e:
+                print(f"Could not load scalers for '{subdir_name}'. Error: {e}")
+                
+    return loaded_scalers
