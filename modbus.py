@@ -11,6 +11,7 @@ from torch import Tensor,empty,tensor,float32,int32
 import warnings
 from sklearn.base import OneToOneFeatureMixin
 import subprocess
+from sklearn.utils import column_or_1d
 
 class ModbusDataset():
 
@@ -150,8 +151,13 @@ class ModbusFlowStream(Dataset):
         # Determine numeric columns for scaling once during initialization
         self.numeric_cols_to_scale =[]
         self.determine_numeric_cul()
-
-        self.label_encoder = LabelEncoder()
+        class MyLabelEncoder(LabelEncoder):
+            def fit(self, y):
+                y = column_or_1d(y, warn=True)
+                # instead of np.unique to bypass sorting alphabetically
+                self.classes_ = pd.Series(y).unique()
+                return self
+        self.label_encoder = MyLabelEncoder()
         self.protocol_encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
         self._fit_encoders()
 
@@ -179,8 +185,8 @@ class ModbusFlowStream(Dataset):
         """
         Fit LabelEncoders for 'Label' and OneHotEncoder for 'Protocol' based on known unique values.
         """
-        label_values = ['BASELINE REPLAY', 'PAYLOAD INJECTION', 'FRAME STACKING', 'QUERY FLOODING', 'RECON',
-                        'BRUTE FORCE', 'BENIGN', 'DELAY RESPONSE', 'LENGTH MANIPULATION']
+        label_values = ['BENIGN','BRUTE FORCE','BASELINE REPLAY', 'PAYLOAD INJECTION', 'FRAME STACKING', 'QUERY FLOODING', 'RECON'
+                        ,'LENGTH MANIPULATION', 'DELAY RESPONSE',]
         # OneHotEncoder expects a 2D array, even for a single feature
         protocol_values = np.array([17, 2, 6]).reshape(-1, 1)
         self.label_encoder.fit(label_values)
@@ -252,7 +258,7 @@ class ModbusFlowStream(Dataset):
                 seq_labels = []
                 for i in range(len(features_np) - self.window_size + 1):
                     sequences.append(features_np[i:i + self.window_size])
-                    seq_labels.append(labels_np[i + self.window_size - 1]) # Label of the last element in the window
+                    seq_labels.append(labels_np[i + self.window_size - 1]) # binary classification (normal/anormaly)
                 
                 if not sequences: 
                     self.current_chunk_data = empty(0)
