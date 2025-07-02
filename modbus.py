@@ -258,7 +258,9 @@ class ModbusFlowStream(Dataset):
                 seq_labels = []
                 for i in range(len(features_np) - self.window_size + 1):
                     sequences.append(features_np[i:i + self.window_size])
-                    seq_labels.append(labels_np[i + self.window_size - 1]) # binary classification (normal/anormaly)
+                    # binary classification (normal/anormaly)
+                    # if one flow is anomaly (label number greater than zero), then the total seq is anomaly
+                    seq_labels.append(np.max(labels_np[i + self.window_size - 1]))
                 
                 if not sequences: 
                     self.current_chunk_data = empty(0)
@@ -285,8 +287,12 @@ class ModbusFlowStream(Dataset):
         def count_rows(file_path):
             result = subprocess.run(['wc', '-l', file_path], capture_output=True, text=True)
             return int(result.stdout.split()[0]) - 1  # Subtract 1 for header
-
-        total_rows = sum(int(np.ceil(count_rows(file)/self.batch_size)) for file in self.csv_files)
+        if not (isinstance(self.csv_files,list)):
+            try:
+                self.csv_files = list(self.csv_files)
+            except:
+                print(self.csv_files,f"with type {type(self.csv_files)}","not convertable to python list")
+        total_rows = sum(int(np.ceil(count_rows(file)/self.batch_size)) for file in self.csv_files)            
         return total_rows
 
     def __len__(self) -> int:
