@@ -1,4 +1,3 @@
-
 import os
 import json 
 import numpy as np
@@ -7,7 +6,7 @@ from typing import List,Tuple
 from torch.utils.data import Dataset
 import random
 from sklearn.preprocessing import OneHotEncoder , LabelEncoder
-from torch import Tensor,empty,tensor,float32,int32
+from torch import Tensor,empty,tensor,float32,int32,randperm
 import warnings
 from sklearn.base import OneToOneFeatureMixin
 import subprocess
@@ -314,15 +313,24 @@ class ModbusFlowStream(Dataset):
         Returns:
             Tuple[Tensor, Tensor]: A tuple containing (features_tensor, labels_tensor) for the batch.
         """
+
         if self.current_chunk_data is None:
             #initial 
             self._load_next_chunk()
         if self.current_row_in_chunk_idx >= self.current_len_chunk_data:
-            self._load_next_chunk() 
+            if self.chunk_size>=self.csv_files_len:
+                ## no need to reload all of the files. All of them loaded previously
+                # no shuffle after first load_next_chunk
+                # shuffle in rows of the tensor  itself
+                dim = 0
+                idx = randperm(self.current_chunk_data.shape[dim])
+                self.current_chunk_data = self.current_chunk_data[idx]
+                self.current_row_in_chunk_idx=0
+            else:
+                self._load_next_chunk() 
         end_idx = min(self.current_row_in_chunk_idx + self.batch_size, self.current_len_chunk_data)
         # Slice the data and labels directly from the pre-converted tensors
         features = self.current_chunk_data[self.current_row_in_chunk_idx:end_idx]
         labels = self.current_chunk_labels[self.current_row_in_chunk_idx:end_idx]
         self.current_row_in_chunk_idx = end_idx
         return features, labels
-
