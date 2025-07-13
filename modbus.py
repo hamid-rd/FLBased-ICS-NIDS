@@ -318,7 +318,7 @@ class ModbusFlowStream(Dataset):
             #initial 
             self._load_next_chunk()
         if self.current_row_in_chunk_idx >= self.current_len_chunk_data:
-            if self.chunk_size>=self.csv_files_len:
+            if self.chunk_size>=self.csv_files_len and self.shuffle:
                 ## no need to reload all of the files. All of them loaded previously
                 # no shuffle after first load_next_chunk
                 # shuffle in rows of the tensor  itself
