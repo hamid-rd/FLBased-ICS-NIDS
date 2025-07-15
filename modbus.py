@@ -112,9 +112,12 @@ class ModbusFlowStream(Dataset):
         batch_size: int = 64, 
         scalers: dict = None,  #accept a dictionary of scalers
         shuffle=True,
-        unuseful_features:List[str]  = ['Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port', 'Timestamp','end_time'],
+        unuseful_features:List[str]  = ['Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port', 'Timestamp','end_time',
+            'Fwd URG Flags', 'Bwd URG Flags', 'URG Flag Count', 'CWR Flag Count', 'ECE Flag Count', 'Fwd Bytes/Bulk Avg', 'Fwd Packet/Bulk Avg',
+            'Fwd Bulk Rate Avg', 'Bwd Bytes/Bulk Avg', 'Bwd Packet/Bulk Avg', 'Bwd Bulk Rate Avg', 'ICMP Code', 'ICMP Type'],
         window_size: int = 1,   # window size for RNN sequences
     ):
+    
         """
         Custom PyTorch Dataset for reading multiple CSV files in chunks with preprocessing and scaling.
 
@@ -126,6 +129,7 @@ class ModbusFlowStream(Dataset):
             window_size: return samples (default:1) or sequences with window_size (each file) for the RNN models 
 
         """
+
         self.csv_files = csv_files
         self.csv_files_len = len(csv_files)
         self.chunk_size = chunk_size
@@ -240,15 +244,16 @@ class ModbusFlowStream(Dataset):
 
             if self.shuffle:
                 chunk_df = chunk_df.sample(frac=1).reset_index(drop=True)
-            chunk_df[self.label_column] = self.label_encoder.transform(chunk_df[self.label_column])
+            ####### new code
+            # chunk_df.drop_duplicates(inplace = True)
 
-            
+            ######
+            chunk_df[self.label_column] = self.label_encoder.transform(chunk_df[self.label_column])
             protocol_encoded_array = self.protocol_encoder.transform(chunk_df[[self.protocol_column]].values)
             chunk_df.drop(columns=[self.protocol_column], inplace=True)
             chunk_df[[f'Protocol_{int(cat)}' for cat in self.protocol_encoder.categories_[0]]] = protocol_encoded_array
 
             chunk_df = self._preprocess_chunk(chunk_df)
-
             features_np = chunk_df.drop(columns=[self.label_column]).values
             labels_np = chunk_df[self.label_column].values
 
@@ -270,6 +275,7 @@ class ModbusFlowStream(Dataset):
             else: # window_size ==1 , AutoEncoder samples 
                 self.current_chunk_data = tensor(features_np, dtype=float32)
                 self.current_chunk_labels = tensor(labels_np, dtype=int32)
+            
             self.current_len_chunk_data = len(self.current_chunk_data)
             self.current_file_idx = end_idx_in_order
             self.current_row_in_chunk_idx = 0  # Reset row index within the new chunk
@@ -317,17 +323,14 @@ class ModbusFlowStream(Dataset):
         if self.current_chunk_data is None:
             #initial 
             self._load_next_chunk()
+        if self.chunk_size>=self.csv_files_len and self.batch_size==1:
+            ## In this manner, treat like a normal custom dataset wraps all csv files in a tensor 
+            # no chunk-chunk read of hard disk files is needed.
+            #use this if your memory is enough 
+            return self.current_chunk_data[idx],self.current_chunk_labels[idx]
+
         if self.current_row_in_chunk_idx >= self.current_len_chunk_data:
-            if self.chunk_size>=self.csv_files_len and self.shuffle:
-                ## no need to reload all of the files. All of them loaded previously
-                # no shuffle after first load_next_chunk
-                # shuffle in rows of the tensor  itself
-                dim = 0
-                idx = randperm(self.current_chunk_data.shape[dim])
-                self.current_chunk_data = self.current_chunk_data[idx]
-                self.current_row_in_chunk_idx=0
-            else:
-                self._load_next_chunk() 
+            self._load_next_chunk()
         end_idx = min(self.current_row_in_chunk_idx + self.batch_size, self.current_len_chunk_data)
         # Slice the data and labels directly from the pre-converted tensors
         features = self.current_chunk_data[self.current_row_in_chunk_idx:end_idx]
