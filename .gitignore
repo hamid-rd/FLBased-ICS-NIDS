@@ -186,3 +186,6 @@ vnv
 *.venv
 version
 *.zip
+*.rar
+*.pdf
+
