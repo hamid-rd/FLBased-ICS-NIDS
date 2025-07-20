@@ -42,7 +42,7 @@ Attacks from 185.175.0.3 targeting 185.175.0.4 and 185.175.0.8. Days 12 to 15 mi
 
 | Attack Type            | Description                                                                                                   |
 |-----------------------|---------------------------------------------------------------------------------------------------------------|
-| Length Manipulation   | Changing the Modbus/TCP query length header to an incorrect value, making the protocol unrecognizable to Wireshark. |
+| Length Manipulation   | Changing the Modbus/TCP query length header to an incorrect value or more than real one,could making the protocol unrecognizable to Wireshark. |
 | Payload Injection     | Appending random payloads (e.g., 5 bytes) to read queries.                                                    |
 | Replay Attack         | Resending previous queries in a last-in-first-out (LIFO) order.                                               |
 | Query Flooding        | Sending multiple read queries (e.g., 30) in a burst within one connection, with transaction IDs increasing from 0 to 30. It must be said that Query Flooding completed in the log. |
