@@ -7,9 +7,10 @@
   - [Architecture](#architecture)
   - [Feature Extraction pipeline](#feature-extraction-pipeline)
 - [Preprocessing](#preprocessing)
-  - [Requirments](#resources)
+  - [Requirments](#requirments)
   - [Labeling](#labeling)
   - [Visualization](#visualization)
+- [Training](#training)
 ## Introduction
 
 In this repo, a federated framework for Anomaly-based Netowrk Intrusion Detection through VAE-LSTM Network implemented.
@@ -124,4 +125,9 @@ Label [ pipeline script ](#feature-extraction-pipeline) by correlating them with
 Dataset statiscal charactristics (like mean,min,max,...) analyzed. Label Distribution for each node in diverse attack scenarios 
 plotted (huge unbalanaed). Classification performance of several machine learning models (SVM,LR,Gaussian Naive Bayes ,...) is tested. 
 Some feature Engineering techniques (like underSampling,MinMax Scaling,feature selection,...) is implemented to improve the performance.
+
+## Training
+(training.ipynb Implement in torch) Train AE,VAE and AAE in centralized and federated setup {FedAvg,FedProx}
+and evaluate in external and compromised-scenario
+
 
