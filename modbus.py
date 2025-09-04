@@ -112,6 +112,7 @@ class ModbusFlowStream(Dataset):
         batch_size: int = 64, 
         scalers: dict = None,  #accept a dictionary of scalers
         shuffle=True,
+        shuffle_frac=1,
         unuseful_features:List[str]  = ['Flow ID', 'Src IP', 'Src Port', 'Dst IP', 'Dst Port', 'Timestamp','end_time',
             'Fwd URG Flags', 'Bwd URG Flags', 'URG Flag Count', 'CWR Flag Count', 'ECE Flag Count', 'Fwd Bytes/Bulk Avg', 'Fwd Packet/Bulk Avg',
             'Fwd Bulk Rate Avg', 'Bwd Bytes/Bulk Avg', 'Bwd Packet/Bulk Avg', 'Bwd Bulk Rate Avg', 'ICMP Code', 'ICMP Type'],
@@ -141,6 +142,7 @@ class ModbusFlowStream(Dataset):
             warnings.warn("when dealing with time_series/sequences shuffling is prohibited")
         self.file_order_indices = list(range(self.csv_files_len))
         self.shuffle = shuffle
+        self.shuffle_frac=shuffle_frac
         self.window_size=window_size
 
         self.current_file_idx = 0 
@@ -164,7 +166,7 @@ class ModbusFlowStream(Dataset):
         self.protocol_encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
         self._fit_encoders()
 
-        self.total_batches = self._calculate_total_rows()
+        self.total_batches = self._calculate_total_batches()
 
     def determine_numeric_cul(self):    
         if self.csv_files_len > 0:
@@ -243,7 +245,7 @@ class ModbusFlowStream(Dataset):
                                                 ignore_index=True)
 
             if self.shuffle:
-                chunk_df = chunk_df.sample(frac=1).reset_index(drop=True)
+                chunk_df = chunk_df.sample(frac=self.shuffle_frac,random_state=0).reset_index(drop=True)
             ####### new code
             # chunk_df.drop_duplicates(inplace = True)
 
@@ -283,21 +285,28 @@ class ModbusFlowStream(Dataset):
             self.current_chunk_data = None
             self.current_chunk_labels = None
 
-    def _calculate_total_rows(self) -> int:
+    def _calculate_total_batches(self) -> int:
         """
-        Calculates the total number of samples across all CSV files.
+        Calculates the total number of batches across all CSV files.
         This is called once during initialization.
         """
         def count_rows(file_path):
             result = subprocess.run(['wc', '-l', file_path], capture_output=True, text=True)
             return int(result.stdout.split()[0]) - 1  # Subtract 1 for header
-        if not (isinstance(self.csv_files,list)):
-            try:
-                self.csv_files = list(self.csv_files)
-            except:
-                print(self.csv_files,f"with type {type(self.csv_files)}","not convertable to python list")
-        total_rows = sum(int(np.ceil((count_rows(file)-self.window_size+1)/self.batch_size)) for file in self.csv_files)            
-        return total_rows
+        if(self.shuffle_frac==1 and self.shuffle):
+            if not (isinstance(self.csv_files,list)):
+                try:
+                    self.csv_files = list(self.csv_files)
+                except:
+                    print(self.csv_files,f"with type {type(self.csv_files)}","not convertable to python list")
+            total_batches = sum(int(np.ceil((count_rows(file)-self.window_size+1)/self.batch_size)) for file in self.csv_files)  
+        else:
+            # It iterates through each file, reads it into a DataFrame, samples it (like the main loop)
+            total_batches = sum(
+                int(np.ceil( (len(pd.read_csv(file).sample(frac=self.shuffle_frac, random_state=0)) - self.window_size + 1) / self.batch_size ))
+                for file in self.csv_files
+            )   
+        return total_batches
 
     def __len__(self) -> int:
 
